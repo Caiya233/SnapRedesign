@@ -1,0 +1,22 @@
+# Core utilities
+requests
+numpy
+
+# Image handling
+pillow
+
+# Hotkey support (for Ctrl+Shift+S snip trigger)
+keyboard
+pystray
+
+# PyTorch (required for CLIP)
+torch>=2.2
+torchvision
+
+# CLIP dependencies
+ftfy
+regex
+tqdm
+
+# Install OpenAI CLIP directly from GitHub
+git+https://github.com/openai/CLIP.git

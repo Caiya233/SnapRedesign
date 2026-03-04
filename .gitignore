@@ -1,4 +1,4 @@
-.DS_Store
+outputs/
 __pycache__/
-.pycache/
 *.pyc
+.venv/
