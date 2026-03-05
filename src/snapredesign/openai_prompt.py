@@ -264,9 +264,10 @@ def generate_prompt_variations(
 # MAIN FUNCTION USED BY APP
 # ------------------------------
 
-def generate_prompt():
+def generate_prompt(preset=None):
 
-    preset = random.choice(list(PRESETS.keys()))
+    if preset is None:
+        preset = random.choice(list(PRESETS.keys()))
 
     prompt, negative = build_prompt(
         subject="same character but redesigned outfit",

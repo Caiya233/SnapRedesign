@@ -8,6 +8,7 @@ from snapredesign.comfy_client import ComfyClient
 from snapredesign.openai_prompt import generate_prompt
 from snapredesign.viewer import show_results
 from snapredesign.tray_app import create_icon
+from snapredesign.style_ui import choose_style
 
 
 CONFIG_PATH = Path("config.json")
@@ -28,27 +29,33 @@ def load_workflow():
 
 
 def run_pipeline():
+    try:
+        print("Snip an image...")
 
-    print("Snip an image...")
+        image_path = snip_screen()
+        if image_path is None:
+            return
 
-    image_path = snip_screen()
+        style = choose_style()
 
-    if image_path is None:
-        return
+        prompt = generate_prompt(preset=style["preset"])
 
-    prompt = generate_prompt(preset=style["preset"])
+        workflow = load_workflow()
 
-    workflow = load_workflow()
+        client = ComfyClient(load_config())
 
-    client = ComfyClient(load_config())
+        images = client.run_workflow(
+            workflow=workflow,
+            input_image=image_path,
+            prompt=prompt,
+            denoise=style["denoise"],
+            seed_lock=style["seed_lock"]
+        )
 
-    images = client.run_workflow(
-        workflow=workflow,
-        input_image=image_path,
-        prompt=prompt
-    )
+        show_results(image_path, images)
 
-    show_results(image_path, images)
+    except Exception as e:
+        print("Pipeline error:", e)
 
 
 def main():
@@ -64,3 +71,7 @@ def main():
     tray = create_icon()
 
     tray.run()
+
+
+if __name__ == "__main__":
+    main()
