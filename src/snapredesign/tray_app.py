@@ -3,8 +3,6 @@ from PIL import Image
 import pystray
 from pystray import MenuItem as item
 
-from snapredesign.main import run_pipeline
-
 
 def open_outputs(icon, item):
     import os
@@ -12,7 +10,13 @@ def open_outputs(icon, item):
 
 
 def run_snip(icon, item):
+    from snapredesign.main import run_pipeline   # moved import here
     threading.Thread(target=run_pipeline).start()
+
+
+def open_style_window(icon, item):
+    from snapredesign.style_ui import choose_style
+    choose_style()
 
 
 def quit_app(icon, item):

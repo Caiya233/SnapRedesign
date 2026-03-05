@@ -7,6 +7,7 @@ from io import BytesIO
 
 import torch
 import clip
+import random
 
 
 class ComfyClient:
@@ -88,6 +89,23 @@ class ComfyClient:
 
         for node_id in neg_nodes:
             workflow[node_id]["inputs"]["text"] = negative
+
+        return workflow
+
+    # --------------------------------------------
+    # Inject sampler settings (denoise / seed)
+    # --------------------------------------------
+
+    def apply_sampler_settings(self, workflow, denoise, seed_lock):
+
+        for node_id, node in workflow.items():
+
+            if node.get("class_type") == "KSampler":
+
+                node["inputs"]["denoise"] = denoise
+
+                if not seed_lock:
+                    node["inputs"]["seed"] = random.randint(1, 2**32)
 
         return workflow
 
@@ -190,7 +208,7 @@ class ComfyClient:
     # Run workflow
     # --------------------------------------------
 
-    def run_workflow(self, workflow, input_image, prompt):
+    def run_workflow(self, workflow, input_image, prompt, denoise=0.5, seed_lock=False):
 
         print("Uploading input image...")
         image_name = self.upload_image(input_image)
@@ -200,6 +218,13 @@ class ComfyClient:
             workflow,
             image_name,
             prompt
+        )
+
+        # Apply UI settings to sampler
+        workflow = self.apply_sampler_settings(
+            workflow,
+            denoise,
+            seed_lock
         )
 
         print("Queueing workflow...")
@@ -212,7 +237,7 @@ class ComfyClient:
 
         print("Downloading images...")
 
-        images = []
+        results = []
 
         for img_info in outputs:
 
@@ -222,9 +247,9 @@ class ComfyClient:
 
             print("Identity similarity:", round(score, 3))
 
-            images.append({
+            results.append({
                 "image": img,
                 "score": score
             })
 
-        return images
+        return results
