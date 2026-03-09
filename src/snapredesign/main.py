@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import keyboard
 import threading
+import time
 
 from snapredesign.snip_overlay import snip_screen
 from snapredesign.comfy_client import ComfyClient
@@ -51,6 +52,13 @@ def run_pipeline():
             denoise=style["denoise"],
             seed_lock=style["seed_lock"]
         )
+
+        OUTPUT_DIR.mkdir(exist_ok=True)
+        timestamp = int(time.time())
+        
+        for i, res in enumerate(images):
+            save_path = OUTPUT_DIR / f"redesign_{timestamp}_{i}.png"
+            res["image"].save(save_path)
 
         show_results(image_path, images)
 

@@ -141,12 +141,32 @@ SnapRedesign
 # Requirements
 
 * Python **3.10+**
-* **ComfyUI running locally**
-* NVIDIA GPU recommended
+* **ComfyUI running locally (SEE SETUP BELOW)**
+* NVIDIA GPU recommended (for faster generation speed)
+* Windows recommended (`keyboard` library doesn't work well on MacOS)
 
 ---
 
-# Installation
+# ComfyUI Setup
+
+SnapRedesign acts as a lightweight frontend, while a local ComfyUI instance serves as the AI backend engine. Before starting the app, you **must** complete the following ComfyUI setup:
+
+1. **Download ComfyUI**: Download the [ComfyUI Windows Portable](https://github.com/comfyanonymous/ComfyUI) standalone package and extract it (ensure there are no spaces or non-English characters in the folder path).
+2. **Place Core Models**: This project's workflow relies on three specific model weights. Please place them strictly in the following directories:
+   * **UNET Model**: [z_image_turbo_bf16.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors) ➡️ Place in `ComfyUI/models/unet/`
+   * **CLIP Text Encoder**: [qwen_3_4b.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors) ➡️ Place in `ComfyUI/models/clip/`
+   * **VAE Model**: [ae.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors) ➡️ Place in `ComfyUI/models/vae/`
+3. **Fire the Engine**: Double-click `run_nvidia_gpu.bat` in the ComfyUI directory (SINCE NVIDIA GPU IS RECOMMENDED). Wait for it to load and keep the terminal window running in the background.
+4. **Align Port Configuration**: ComfyUI runs on port `8188` by default. Ensure the `config.json` in the root directory of SnapRedesign is configured as follows:
+    ```json
+    {
+        "comfy_url": "http://127.0.0.1:8188"
+    }
+    ```
+
+---
+
+# App Installation
 
 Clone the repository:
 
@@ -155,20 +175,33 @@ git clone https://github.com/yourusername/SnapRedesign.git
 cd SnapRedesign
 ```
 
+Create & activate a virtual environment:
+
+```
+python -m venv .venv
+.venv\Scripts\activate
+```
+
 Install dependencies:
 
 ```
 pip install -r requirements.txt
 ```
 
-Dependencies include:
+* Dependencies include:
 
-* PyTorch
-* CLIP
-* Pillow
-* Requests
-* Keyboard
-* PyStray
+    * PyTorch
+    * CLIP
+    * Pillow
+    * Requests
+    * Keyboard
+    * PyStray
+
+Install the project as a local editable package:
+
+```
+pip install -e .
+```
 
 ---
 
@@ -186,11 +219,7 @@ Once running:
 CTRL + SHIFT + S → snip an image
 ```
 
-The redesigned images will appear in the **viewer window** and be saved to:
-
-```
-outputs/
-```
+Right-click the icon in the system tray & select ```History Gallery```, then the redesigned images saved to ```outputs/``` folder will appear in the **viewer window**.
 
 ---
 
