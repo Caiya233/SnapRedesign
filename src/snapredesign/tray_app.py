@@ -14,6 +14,11 @@ def run_snip(icon, item):
     threading.Thread(target=run_pipeline).start()
 
 
+def show_history(icon, item):
+    from snapredesign.history_gallery import open_gallery
+    open_gallery()
+
+
 def open_style_window(icon, item):
     from snapredesign.style_ui import choose_style
     choose_style()
@@ -29,6 +34,7 @@ def create_icon():
 
     menu = pystray.Menu(
         item("Snip + Redesign (Ctrl+Shift+S)", run_snip),
+        item("History Gallery", show_history),
         item("Open Outputs", open_outputs),
         item("Choose Style", open_style_window),
         item("Quit", quit_app),

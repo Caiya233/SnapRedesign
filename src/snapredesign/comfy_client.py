@@ -156,6 +156,7 @@ class ComfyClient:
 
                         for img in node["images"]:
                             images.append(img)
+                        break
 
                 if images:
                     return images
@@ -205,51 +206,52 @@ class ComfyClient:
         return similarity
 
     # --------------------------------------------
-    # Run workflow
+    # Run workflow (Modified for Batch Generation)
     # --------------------------------------------
 
-    def run_workflow(self, workflow, input_image, prompt, denoise=0.5, seed_lock=False):
+    def run_workflow(self, workflow, input_image, prompt, denoise=0.5, seed_lock=False, batch_size=4):
 
         print("Uploading input image...")
         image_name = self.upload_image(input_image)
 
-        print("Preparing workflow...")
-        workflow = self.prepare_workflow(
-            workflow,
-            image_name,
-            prompt
-        )
+        prompt_ids = []
 
-        # Apply UI settings to sampler
-        workflow = self.apply_sampler_settings(
-            workflow,
-            denoise,
-            seed_lock
-        )
+        # batch processing
+        for i in range(batch_size):
+            print(f"Queueing task {i+1}/{batch_size}...")
+            
+            task_workflow = self.prepare_workflow(
+                workflow,
+                image_name,
+                prompt
+            )
 
-        print("Queueing workflow...")
-        prompt_id = self.queue_prompt(workflow)
+            # Apply sampler settings
+            task_workflow = self.apply_sampler_settings(
+                task_workflow,
+                denoise,
+                seed_lock
+            )
 
-        print("Prompt ID:", prompt_id)
+            # Queue the workflow
+            prompt_id = self.queue_prompt(task_workflow)
+            prompt_ids.append(prompt_id)
 
         print("Waiting for results...")
-        outputs = self.wait_for_completion(prompt_id)
-
-        print("Downloading images...")
-
         results = []
 
-        for img_info in outputs:
+        for prompt_id in prompt_ids:
+            outputs = self.wait_for_completion(prompt_id)
 
-            img = self.download_image(img_info)
+            for img_info in outputs:
+                img = self.download_image(img_info)
+                score = self.compute_clip_similarity(input_image, img)
+                print(f"Identity similarity: {round(score, 3)}")
 
-            score = self.compute_clip_similarity(input_image, img)
-
-            print("Identity similarity:", round(score, 3))
-
-            results.append({
-                "image": img,
-                "score": score
-            })
+                results.append({
+                    "image": img,
+                    "score": score
+                })
+                break  # 1 output image per request
 
         return results
