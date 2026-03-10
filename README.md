@@ -1,4 +1,3 @@
-````md
 # SnapRedesign
 
 SnapRedesign is a **desktop AI redesign tool** that turns anything on your screen into new concept art using local AI models.
@@ -13,17 +12,17 @@ The goal is to make AI behave like a **design assistant for fast concept explora
 
 ### Instant Screen Redesign
 
-* Press **Ctrl + Shift + S**
-* Select any part of your screen
-* SnapRedesign automatically launches the redesign pipeline
+- Press **Ctrl + Shift + S**
+- Select any part of your screen
+- SnapRedesign automatically launches the redesign pipeline
 
 ### Local AI Generation
 
-* Uses **ComfyUI workflows**
-* Runs entirely on your own GPU
-* No cloud services required
+- Uses **ComfyUI workflows**
+- Runs entirely on your own GPU
+- No cloud services required
 
-ComfyUI workflows are JSON graphs of nodes that describe the image generation pipeline and can be executed through API routes such as `/prompt`, `/history/{prompt_id}`, and `/view`. 
+ComfyUI workflows are JSON graphs of nodes that describe the image generation pipeline and can be executed through API routes such as `/prompt`, `/history/{prompt_id}`, and `/view`.
 
 ### Prompt Lab
 
@@ -31,68 +30,68 @@ SnapRedesign now includes a dedicated **Prompt Lab** UI for deeper creative cont
 
 You can:
 
-* choose a prompt mode
-* use a preset or no preset at all
-* type your own custom positive prompt
-* edit the negative prompt
-* preview the final composed prompt before generation
-* save settings for later runs
+- choose a prompt mode
+- use a preset or no preset at all
+- type your own custom positive prompt
+- edit the negative prompt
+- preview the final composed prompt before generation
+- save settings for later runs
 
 ### Prompt Modes
 
 Built-in prompt modes include:
 
-* **Preset Only**
-* **Manual Only**
-* **Preset + Manual**
-* **Randomized**
+- **Preset Only**
+- **Manual Only**
+- **Preset + Manual**
+- **Randomized**
 
 This means you can:
 
-* rely fully on presets
-* ignore presets and type everything yourself
-* blend presets with your own prompt additions
-* let SnapRedesign generate a more randomized prompt structure
+- rely fully on presets
+- ignore presets and type everything yourself
+- blend presets with your own prompt additions
+- let SnapRedesign generate a more randomized prompt structure
 
 ### Style Presets
 
 Built-in style presets include:
 
-* Cyberpunk
-* Anime
-* Comic
-* Streetwear
-* Samurai
-* Dark Fantasy
-* Sci-Fi
-* Military
-* Retro Arcade
-* High Fashion
-* Game Character
-* Punk
-* Industrial
-* Fantasy Hero
-* MMA Fighter
-* None
+- Cyberpunk
+- Anime
+- Comic
+- Streetwear
+- Samurai
+- Dark Fantasy
+- Sci-Fi
+- Military
+- Retro Arcade
+- High Fashion
+- Game Character
+- Punk
+- Industrial
+- Fantasy Hero
+- MMA Fighter
+- None
 
 ### Advanced Style Controls
 
 Inside Prompt Lab, you can control:
 
-* prompt mode
-* style preset
-* subject text
-* custom positive prompt
-* negative prompt
-* redesign strength
-* denoise strength
-* seed locking
-* batch size
-* lighting
-* camera angle
-* color palette
-* environment
-* detail level
+- prompt mode
+- style preset
+- subject text
+- custom positive prompt
+- negative prompt
+- redesign strength
+- denoise strength
+- seed locking
+- batch size
+- lighting
+- camera angle
+- color palette
+- environment
+- detail level
 
 ### Live Prompt Preview
 
@@ -100,9 +99,9 @@ Before generation, SnapRedesign builds the final positive and negative prompt fo
 
 This makes it easier to:
 
-* understand what will actually be sent to the workflow
-* iterate faster
-* combine presets with custom prompt text more intentionally
+- understand what will actually be sent to the workflow
+- iterate faster
+- combine presets with custom prompt text more intentionally
 
 ### Persistent Settings
 
@@ -110,15 +109,15 @@ SnapRedesign now saves your prompt and style configuration to `ui_state.json`.
 
 This includes settings such as:
 
-* prompt mode
-* preset
-* custom prompt
-* negative prompt
-* redesign strength
-* denoise
-* seed lock
-* batch size
-* lighting / camera / palette / environment / detail
+- prompt mode
+- preset
+- custom prompt
+- negative prompt
+- redesign strength
+- denoise
+- seed lock
+- batch size
+- lighting / camera / palette / environment / detail
 
 So the next time you open the app, your previous setup is already loaded.
 
@@ -128,9 +127,9 @@ Generated images are ranked based on how closely they match the original image.
 
 This helps preserve:
 
-* character identity
-* pose
-* design consistency
+- character identity
+- pose
+- design consistency
 
 ### Image Comparison Viewer
 
@@ -162,8 +161,6 @@ The desktop UI now uses a darker, more stylized visual presentation with:
 * neon accent colors
 * improved viewer and gallery windows
 
-The current desktop architecture uses a single main root window with additional top-level windows, which matches recommended CustomTkinter window usage.
-
 ### System Tray App
 
 SnapRedesign runs in the background with a tray icon.
@@ -177,8 +174,6 @@ Open Outputs
 Choose Style
 Quit
 ```
-
-Python libraries such as **pystray** allow applications to run in the system tray and attach interactive menus to an icon. For framework integration, `run_detached` is used so the tray can coexist with another app event loop.
 
 ### Global Hotkeys
 
@@ -424,5 +419,3 @@ Potential upgrades:
 * export to Photoshop / Krita
 * side-by-side prompt diffing
 * multi-workflow generation presets
-
-```
