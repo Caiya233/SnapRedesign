@@ -9,7 +9,7 @@ import ctypes
 
 from snapredesign.snip_overlay import snip_screen
 from snapredesign.comfy_client import ComfyClient
-from snapredesign.openai_prompt import generate_prompt
+from snapredesign.openai_prompt import build_prompt_from_settings
 from snapredesign.viewer import show_results
 from snapredesign.tray_app import create_icon
 from snapredesign.style_ui import choose_style
@@ -26,17 +26,10 @@ _result_queue = queue.Queue()
 
 
 def enable_dpi_awareness():
-    """
-    Make Windows use real monitor pixel coordinates so Tk mouse coords
-    and Pillow ImageGrab bbox coords line up better.
-    Must run before creating any Tk windows.
-    """
     try:
-        # Per-monitor DPI aware
         ctypes.windll.shcore.SetProcessDpiAwareness(2)
     except Exception:
         try:
-            # Fallback for older Windows APIs
             ctypes.windll.user32.SetProcessDPIAware()
         except Exception:
             pass
@@ -56,7 +49,7 @@ def load_workflow():
 
 def generate_images_worker(image_path, style):
     try:
-        prompt = generate_prompt(preset=style["preset"])
+        prompt = build_prompt_from_settings(style)
         workflow = load_workflow()
         client = ComfyClient(load_config())
 
@@ -65,7 +58,8 @@ def generate_images_worker(image_path, style):
             input_image=image_path,
             prompt=prompt,
             denoise=style["denoise"],
-            seed_lock=style["seed_lock"]
+            seed_lock=style["seed_lock"],
+            batch_size=style["batch_size"]
         )
 
         OUTPUT_DIR.mkdir(exist_ok=True)
@@ -112,7 +106,8 @@ def start_pipeline():
             return
 
         current_style = load_style_state()
-        style = choose_style()
+        style = choose_style(master=_app_root)
+
         if style is None:
             style = current_style
 
@@ -160,7 +155,7 @@ def main():
     keyboard.add_hotkey("ctrl+shift+s", start_pipeline)
 
     _tray_icon = create_icon()
-    threading.Thread(target=_tray_icon.run, daemon=True).start()
+    _tray_icon.run_detached()
 
     poll_results()
 

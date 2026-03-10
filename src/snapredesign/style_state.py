@@ -1,38 +1,44 @@
 import json
 from pathlib import Path
 
-STYLE_STATE_PATH = Path("ui_state.json")
+from snapredesign.openai_prompt import default_prompt_settings
 
-DEFAULT_STYLE = {
-    "preset": "cyberpunk",
-    "denoise": 0.6,
-    "seed_lock": False
-}
+
+STYLE_STATE_PATH = Path("ui_state.json")
 
 
 def load_style_state():
+    defaults = default_prompt_settings()
+
     if STYLE_STATE_PATH.exists():
         try:
             with open(STYLE_STATE_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            return {
-                "preset": data.get("preset", DEFAULT_STYLE["preset"]),
-                "denoise": float(data.get("denoise", DEFAULT_STYLE["denoise"])),
-                "seed_lock": bool(data.get("seed_lock", DEFAULT_STYLE["seed_lock"]))
-            }
-        except Exception:
-            return DEFAULT_STYLE.copy()
+            merged = defaults.copy()
+            merged.update(data)
 
-    return DEFAULT_STYLE.copy()
+            merged["redesign_strength"] = float(merged.get("redesign_strength", defaults["redesign_strength"]))
+            merged["denoise"] = float(merged.get("denoise", defaults["denoise"]))
+            merged["seed_lock"] = bool(merged.get("seed_lock", defaults["seed_lock"]))
+            merged["batch_size"] = int(merged.get("batch_size", defaults["batch_size"]))
+
+            return merged
+        except Exception:
+            return defaults.copy()
+
+    return defaults.copy()
 
 
 def save_style_state(style):
-    payload = {
-        "preset": style["preset"],
-        "denoise": float(style["denoise"]),
-        "seed_lock": bool(style["seed_lock"])
-    }
+    defaults = default_prompt_settings()
+    payload = defaults.copy()
+    payload.update(style)
+
+    payload["redesign_strength"] = float(payload["redesign_strength"])
+    payload["denoise"] = float(payload["denoise"])
+    payload["seed_lock"] = bool(payload["seed_lock"])
+    payload["batch_size"] = int(payload["batch_size"])
 
     with open(STYLE_STATE_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)

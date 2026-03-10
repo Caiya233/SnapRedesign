@@ -6,6 +6,8 @@ import random
 # ------------------------------
 
 PRESETS = {
+    "none": [],
+
     "cyberpunk": [
         "cyberpunk aesthetic",
         "neon lighting",
@@ -114,10 +116,18 @@ PRESETS = {
 
 
 # ------------------------------
-# LIGHTING OPTIONS
+# CONTROL OPTIONS
 # ------------------------------
 
+PROMPT_MODES = [
+    "preset_only",
+    "manual_only",
+    "preset_plus_manual",
+    "randomized"
+]
+
 LIGHTING = [
+    "random",
     "dramatic cinematic lighting",
     "neon rim lighting",
     "soft studio lighting",
@@ -126,12 +136,8 @@ LIGHTING = [
     "high contrast lighting",
 ]
 
-
-# ------------------------------
-# CAMERA ANGLES
-# ------------------------------
-
 CAMERA = [
+    "random",
     "low angle hero shot",
     "three quarter character view",
     "dynamic action angle",
@@ -139,12 +145,8 @@ CAMERA = [
     "cinematic wide shot",
 ]
 
-
-# ------------------------------
-# COLOR PALETTES
-# ------------------------------
-
 COLOR_PALETTES = [
+    "random",
     "neon purple and pink palette",
     "black and gold palette",
     "vibrant streetwear colors",
@@ -152,12 +154,8 @@ COLOR_PALETTES = [
     "teal and orange cinematic palette",
 ]
 
-
-# ------------------------------
-# ENVIRONMENTS
-# ------------------------------
-
 ENVIRONMENTS = [
+    "random",
     "minimal studio background",
     "futuristic city backdrop",
     "urban alley environment",
@@ -165,118 +163,124 @@ ENVIRONMENTS = [
     "dark atmospheric setting",
 ]
 
-
-# ------------------------------
-# DETAIL LEVEL
-# ------------------------------
-
 DETAIL = [
+    "random",
     "ultra detailed",
     "high detail concept art",
     "professional character concept art",
     "AAA game concept quality",
 ]
 
-
-# ------------------------------
-# NEGATIVE PROMPTS
-# ------------------------------
-
-NEGATIVE_PROMPT = [
-    "blurry",
-    "low quality",
-    "watermark",
-    "text artifacts",
-    "extra limbs",
-    "bad anatomy",
-    "distorted face",
-]
+DEFAULT_NEGATIVE_PROMPT = (
+    "blurry, low quality, watermark, text artifacts, extra limbs, "
+    "bad anatomy, distorted face"
+)
 
 
 # ------------------------------
-# PROMPT BUILDER
+# HELPERS
 # ------------------------------
 
-def build_prompt(
-    subject="same character",
-    preset=None,
-    redesign_strength=0.7,
-):
-    """
-    Build a strong prompt for diffusion models.
-    """
-
-    if preset is None:
-        preset = random.choice(list(PRESETS.keys()))
-
-    style_elements = PRESETS[preset]
-
-    lighting = random.choice(LIGHTING)
-    camera = random.choice(CAMERA)
-    palette = random.choice(COLOR_PALETTES)
-    environment = random.choice(ENVIRONMENTS)
-    detail = random.choice(DETAIL)
-
-    prompt_parts = [
-        subject,
-        f"redesign strength {redesign_strength}",
-        *style_elements,
-        lighting,
-        camera,
-        palette,
-        environment,
-        detail,
-        "concept art",
-        "professional character design"
-    ]
-
-    prompt = ", ".join(prompt_parts)
-
-    negative = ", ".join(NEGATIVE_PROMPT)
-
-    return prompt, negative
+def _clean_csv_text(text):
+    if not text:
+        return []
+    return [part.strip() for part in text.split(",") if part.strip()]
 
 
-# ------------------------------
-# MULTI PROMPT GENERATION
-# ------------------------------
+def _pick(value, choices):
+    if value == "random" or not value:
+        valid = [c for c in choices if c != "random"]
+        return random.choice(valid)
+    return value
 
-def generate_prompt_variations(
-    subject="same character redesigned",
-    count=4
-):
-    prompts = []
 
-    for _ in range(count):
-        preset = random.choice(list(PRESETS.keys()))
-        prompt, negative = build_prompt(subject, preset)
+def _dedupe_keep_order(items):
+    seen = set()
+    output = []
+    for item in items:
+        norm = item.strip().lower()
+        if item and norm not in seen:
+            seen.add(norm)
+            output.append(item.strip())
+    return output
 
-        prompts.append({
-            "preset": preset,
-            "prompt": prompt,
-            "negative_prompt": negative
-        })
 
-    return prompts
+def default_prompt_settings():
+    return {
+        "mode": "preset_only",
+        "preset": "cyberpunk",
+        "custom_prompt": "",
+        "negative_prompt": DEFAULT_NEGATIVE_PROMPT,
+        "lighting": "random",
+        "camera": "random",
+        "palette": "random",
+        "environment": "random",
+        "detail": "random",
+        "subject": "same character but redesigned outfit",
+        "redesign_strength": 0.8,
+        "denoise": 0.6,
+        "seed_lock": False,
+        "batch_size": 4,
+    }
 
 
 # ------------------------------
-# MAIN FUNCTION USED BY APP
+# PROMPT BUILDING
 # ------------------------------
 
-def generate_prompt(preset=None):
+def build_prompt_from_settings(settings):
+    mode = settings.get("mode", "preset_only")
+    preset = settings.get("preset", "cyberpunk")
+    custom_prompt = settings.get("custom_prompt", "").strip()
+    negative_prompt = settings.get("negative_prompt", DEFAULT_NEGATIVE_PROMPT).strip()
+    subject = settings.get("subject", "same character but redesigned outfit").strip()
+    redesign_strength = float(settings.get("redesign_strength", 0.8))
 
-    if preset is None:
-        preset = random.choice(list(PRESETS.keys()))
+    lighting = _pick(settings.get("lighting", "random"), LIGHTING)
+    camera = _pick(settings.get("camera", "random"), CAMERA)
+    palette = _pick(settings.get("palette", "random"), COLOR_PALETTES)
+    environment = _pick(settings.get("environment", "random"), ENVIRONMENTS)
+    detail = _pick(settings.get("detail", "random"), DETAIL)
 
-    prompt, negative = build_prompt(
-        subject="same character but redesigned outfit",
-        preset=preset,
-        redesign_strength=0.8
-    )
+    prompt_parts = [subject, f"redesign strength {redesign_strength:.2f}"]
+
+    preset_parts = PRESETS.get(preset, [])
+
+    if mode == "preset_only":
+        prompt_parts.extend(preset_parts)
+
+    elif mode == "manual_only":
+        prompt_parts.extend(_clean_csv_text(custom_prompt))
+
+    elif mode == "preset_plus_manual":
+        prompt_parts.extend(preset_parts)
+        prompt_parts.extend(_clean_csv_text(custom_prompt))
+
+    elif mode == "randomized":
+        random_preset = random.choice([k for k in PRESETS.keys() if k != "none"])
+        prompt_parts.extend(PRESETS[random_preset])
+        if custom_prompt:
+            prompt_parts.extend(_clean_csv_text(custom_prompt))
+    else:
+        prompt_parts.extend(preset_parts)
+
+    prompt_parts.extend([lighting, camera, palette, environment, detail])
+    prompt_parts.extend(["concept art", "professional character design"])
+
+    prompt_parts = _dedupe_keep_order(prompt_parts)
+
+    positive = ", ".join(prompt_parts)
+    negative = negative_prompt if negative_prompt else DEFAULT_NEGATIVE_PROMPT
 
     return {
         "preset": preset,
-        "prompt": prompt,
+        "prompt": positive,
         "negative_prompt": negative
     }
+
+
+def generate_prompt(preset=None):
+    settings = default_prompt_settings()
+    if preset is not None:
+        settings["preset"] = preset
+    return build_prompt_from_settings(settings)

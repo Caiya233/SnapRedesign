@@ -28,7 +28,7 @@ def draw_scanlines(canvas, width, height, spacing=6, color="#0d1824"):
         canvas.create_line(0, y, width, y, fill=color, width=1, tags="scanline")
 
 
-def open_gallery():
+def open_gallery(master=None):
     output_dir = Path("outputs")
     if not output_dir.exists():
         print("No outputs folder found.")
@@ -46,7 +46,7 @@ def open_gallery():
 
     setup_theme()
 
-    root = ctk.CTk()
+    root = ctk.CTkToplevel(master)
     root.title("SnapRedesign // History Gallery")
     root.geometry("1180x820")
     root.configure(fg_color=BG)
@@ -155,8 +155,6 @@ def open_gallery():
             ).pack(padx=10, pady=10)
 
     redraw()
-    root.mainloop()
-
 
 if __name__ == "__main__":
     open_gallery()
