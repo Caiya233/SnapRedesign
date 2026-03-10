@@ -4,6 +4,7 @@ numpy
 
 # Image handling
 pillow
+customtkinter
 
 # Hotkey support (for Ctrl+Shift+S snip trigger)
 keyboard

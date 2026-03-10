@@ -1,50 +1,66 @@
-import threading
-from PIL import Image
+import os
+from PIL import Image, ImageDraw
 import pystray
 from pystray import MenuItem as item
 
 
-def open_outputs(icon, item):
-    import os
+def build_icon():
+    image = Image.new("RGB", (64, 64), "#0b1020")
+    draw = ImageDraw.Draw(image)
+
+    draw.rounded_rectangle((6, 6, 58, 58), radius=10, outline="#1ef2ff", width=3)
+    draw.line((18, 44, 30, 20, 45, 20), fill="#ff2bd6", width=5)
+    draw.line((19, 45, 44, 45), fill="#7a5cff", width=4)
+    draw.line((46, 10, 54, 10), fill="#1ef2ff", width=2)
+    draw.line((54, 10, 54, 18), fill="#1ef2ff", width=2)
+
+    return image
+
+
+def open_outputs(icon, menu_item):
+    os.makedirs("outputs", exist_ok=True)
     os.startfile("outputs")
 
 
-def run_snip(icon, item):
-    from snapredesign.main import run_pipeline   # moved import here
-    threading.Thread(target=run_pipeline).start()
+def run_snip(icon, menu_item):
+    from snapredesign.main import _app_root, start_pipeline
+    if _app_root is not None:
+        _app_root.after(0, start_pipeline)
 
 
-def show_history(icon, item):
+def show_history(icon, menu_item):
+    from snapredesign.main import _app_root
     from snapredesign.history_gallery import open_gallery
-    open_gallery()
+    if _app_root is not None:
+        _app_root.after(0, open_gallery)
 
 
-def open_style_window(icon, item):
+def open_style_window(icon, menu_item):
+    from snapredesign.main import _app_root
     from snapredesign.style_ui import choose_style
-    choose_style()
+    if _app_root is not None:
+        _app_root.after(0, choose_style)
 
 
-def quit_app(icon, item):
+def quit_app(icon, menu_item):
     icon.stop()
+    from snapredesign.main import _app_root
+    if _app_root is not None:
+        _app_root.after(0, _app_root.destroy)
 
 
 def create_icon():
-
-    image = Image.new("RGB", (64, 64), (40, 40, 40))
-
     menu = pystray.Menu(
-        item("Snip + Redesign (Ctrl+Shift+S)", run_snip),
+        item("Snip + Redesign (Ctrl+Shift+S)", run_snip, default=True),
         item("History Gallery", show_history),
         item("Open Outputs", open_outputs),
         item("Choose Style", open_style_window),
         item("Quit", quit_app),
     )
 
-    icon = pystray.Icon(
+    return pystray.Icon(
         "SnapRedesign",
-        image,
+        build_icon(),
         "SnapRedesign",
         menu
     )
-
-    return icon

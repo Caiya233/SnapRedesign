@@ -1,0 +1,5 @@
+{
+  "preset": "cyberpunk",
+  "denoise": 0.6,
+  "seed_lock": false
+}
