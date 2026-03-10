@@ -282,6 +282,7 @@ cd SnapRedesign
 ```
 
 Create and activate a virtual environment:
+(if source code modification is needed. Otherwise, feel free to skip this step.)
 
 ```bash
 python -m venv .venv
