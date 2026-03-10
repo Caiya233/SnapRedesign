@@ -3,6 +3,8 @@ from PIL import Image, ImageDraw
 import pystray
 from pystray import MenuItem as item
 
+from snapredesign.style_state import save_style_state, load_style_state
+
 
 def build_icon():
     image = Image.new("RGB", (64, 64), "#0b1020")
@@ -32,14 +34,20 @@ def show_history(icon, menu_item):
     from snapredesign.main import _app_root
     from snapredesign.history_gallery import open_gallery
     if _app_root is not None:
-        _app_root.after(0, open_gallery)
+        _app_root.after(0, lambda: open_gallery(master=_app_root))
 
 
 def open_style_window(icon, menu_item):
     from snapredesign.main import _app_root
     from snapredesign.style_ui import choose_style
+
+    def _open():
+        style = choose_style(master=_app_root)
+        if style is not None:
+            save_style_state(style)
+
     if _app_root is not None:
-        _app_root.after(0, choose_style)
+        _app_root.after(0, _open)
 
 
 def quit_app(icon, menu_item):

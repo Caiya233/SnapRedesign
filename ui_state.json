@@ -1,5 +1,16 @@
 {
+  "mode": "preset_plus_manual",
   "preset": "cyberpunk",
-  "denoise": 0.6,
-  "seed_lock": false
+  "custom_prompt": "same character but redesigned outfit, redesign strength 0.80, cyberpunk aesthetic, neon lighting, glowing techwear, futuristic street environment, soft studio lighting, top down stylized angle, black and gold palette, dark atmospheric setting, ultra detailed, concept art, professional character design",
+  "negative_prompt": "",
+  "lighting": "random",
+  "camera": "random",
+  "palette": "random",
+  "environment": "random",
+  "detail": "random",
+  "subject": "same character but redesigned outfit",
+  "redesign_strength": 0.5,
+  "denoise": 0.5,
+  "seed_lock": false,
+  "batch_size": 1
 }
