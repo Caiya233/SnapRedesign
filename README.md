@@ -277,7 +277,7 @@ SnapRedesign acts as a lightweight frontend, while a local ComfyUI instance serv
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/SnapRedesign.git
+git clone https://github.com/Caiya233/SnapRedesign.git
 cd SnapRedesign
 ```
 
