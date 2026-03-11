@@ -248,20 +248,20 @@ SnapRedesign
 
 SnapRedesign acts as a lightweight frontend, while a local ComfyUI instance serves as the AI backend engine. Before starting the app, you **must** complete the following ComfyUI setup:
 
-1. **Download ComfyUI**
-   Download the ComfyUI Windows Portable standalone package and extract it. Avoid spaces or non-English characters in the folder path.
+1. **Download ComfyUI:**
+   Download the [ComfyUI Windows Portable](https://github.com/comfyanonymous/ComfyUI/releases/latest/download/ComfyUI_windows_portable_nvidia.7z) standalone package and extract it. Avoid spaces or non-English characters in the folder path.
 
-2. **Place Core Models**
+2. **Place Core Models:**
    This project's workflow relies on three specific model weights. Place them in the following directories:
 
-   * **UNET Model**: `z_image_turbo_bf16.safetensors` → `ComfyUI/models/unet/`
-   * **CLIP Text Encoder**: `qwen_3_4b.safetensors` → `ComfyUI/models/clip/`
-   * **VAE Model**: `ae.safetensors` → `ComfyUI/models/vae/`
+   * **UNET Model:** [`z_image_turbo_bf16.safetensors`](https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors) → `ComfyUI/models/unet/`
+   * **CLIP Text Encoder:** [`qwen_3_4b.safetensors`](https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors) → `ComfyUI/models/clip/`
+   * **VAE Model:** [`ae.safetensors`](https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors) → `ComfyUI/models/vae/`
 
-3. **Start ComfyUI**
+3. **Start ComfyUI:**
    Double-click `run_nvidia_gpu.bat` in the ComfyUI directory and keep the terminal window running in the background.
 
-4. **Align Port Configuration**
+4. **Align Port Configuration:**
    ComfyUI runs on port `8188` by default. Ensure the `config.json` in the root directory of SnapRedesign is configured as follows:
 
 ```json
