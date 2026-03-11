@@ -23,6 +23,10 @@ OUTPUT_DIR = Path("outputs")
 _app_root = None
 _tray_icon = None
 _result_queue = queue.Queue()
+_client = None
+_client_lock = threading.Lock()
+_config_cache = None
+_workflow_cache = None
 
 
 def enable_dpi_awareness():
@@ -36,22 +40,44 @@ def enable_dpi_awareness():
 
 
 def load_config():
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    global _config_cache
+
+    if _config_cache is None:
+        if CONFIG_PATH.exists():
+            with open(CONFIG_PATH, encoding="utf-8") as f:
+                _config_cache = json.load(f)
+        else:
+            _config_cache = {}
+
+    return _config_cache
 
 
 def load_workflow():
-    with open(WORKFLOW_PATH, encoding="utf-8") as f:
-        return json.load(f)
+    global _workflow_cache
+
+    if _workflow_cache is None:
+        with open(WORKFLOW_PATH, encoding="utf-8") as f:
+            _workflow_cache = json.load(f)
+
+    return _workflow_cache
+
+
+def get_client():
+    global _client
+
+    if _client is None:
+        with _client_lock:
+            if _client is None:
+                _client = ComfyClient(load_config())
+
+    return _client
 
 
 def generate_images_worker(image_path, style):
     try:
         prompt = build_prompt_from_settings(style)
         workflow = load_workflow()
-        client = ComfyClient(load_config())
+        client = get_client()
 
         images = client.run_workflow(
             workflow=workflow,
@@ -133,6 +159,12 @@ def shutdown_app():
         pass
 
     try:
+        if _client is not None:
+            _client.close()
+    except Exception:
+        pass
+
+    try:
         if _app_root is not None and _app_root.winfo_exists():
             _app_root.quit()
             _app_root.destroy()
@@ -153,6 +185,8 @@ def main():
     _app_root.withdraw()
 
     keyboard.add_hotkey("ctrl+shift+s", start_pipeline)
+
+    threading.Thread(target=get_client, daemon=True).start()
 
     _tray_icon = create_icon()
     _tray_icon.run_detached()
