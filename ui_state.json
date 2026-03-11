@@ -1,16 +1,16 @@
 {
   "mode": "preset_only",
-  "preset": "cyberpunk",
+  "preset": "anime",
   "custom_prompt": "",
   "negative_prompt": "blurry, low quality, watermark, text artifacts, extra limbs, bad anatomy, distorted face",
   "lighting": "random",
   "camera": "random",
   "palette": "random",
-  "environment": "random",
-  "detail": "random",
+  "environment": "minimal studio background",
+  "detail": "professional character concept art",
   "subject": "same character but redesigned outfit",
-  "redesign_strength": 0.8,
-  "denoise": 0.6,
+  "redesign_strength": 0.5,
+  "denoise": 0.5,
   "seed_lock": false,
   "batch_size": 4
 }
