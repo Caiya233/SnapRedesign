@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw
 import pystray
 from pystray import MenuItem as item
 
-from snapredesign.style_state import save_style_state, load_style_state
+from snapredesign.style_state import save_style_state
 
 
 def build_icon():
@@ -20,34 +20,29 @@ def build_icon():
 
 
 def open_outputs(icon, menu_item):
-    os.makedirs("outputs", exist_ok=True)
-    os.startfile("outputs")
+    output_dir = os.path.abspath("outputs")
+    os.makedirs(output_dir, exist_ok=True)
+    os.startfile(output_dir)
 
 
 def run_snip(icon, menu_item):
-    from snapredesign.main import _app_root, start_pipeline
-    if _app_root is not None:
-        _app_root.after(0, start_pipeline)
+    from snapredesign.main import start_pipeline
+    start_pipeline()
 
 
 def show_history(icon, menu_item):
     from snapredesign.main import _app_root
     from snapredesign.history_gallery import open_gallery
-    if _app_root is not None:
-        _app_root.after(0, lambda: open_gallery(master=_app_root))
+    open_gallery(master=_app_root)
 
 
 def open_style_window(icon, menu_item):
     from snapredesign.main import _app_root
     from snapredesign.style_ui import choose_style
 
-    def _open():
-        style = choose_style(master=_app_root)
-        if style is not None:
-            save_style_state(style)
-
-    if _app_root is not None:
-        _app_root.after(0, _open)
+    style = choose_style(master=_app_root)
+    if style is not None:
+        save_style_state(style)
 
 
 def quit_app(icon, menu_item):
