@@ -14,7 +14,7 @@ class ComfyClient:
 
     def __init__(self, config=None):
         config = config or {}
-        self.server = config.get("comfy_url", "http://127.0.0.1:8000")
+        self.server = config.get("comfy_url", "http://127.0.0.1:8188")
 
         # CLIP setup
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -89,14 +89,22 @@ class ComfyClient:
     # --------------------------------------------
 
     def apply_sampler_settings(self, workflow, denoise, seed_lock):
+        applied_seed = None
+
         for node_id, node in workflow.items():
             if node.get("class_type") == "KSampler":
                 node["inputs"]["denoise"] = denoise
 
-                if not seed_lock:
-                    node["inputs"]["seed"] = random.randint(1, 2**32)
+                if applied_seed is None:
+                    existing_seed = node["inputs"].get("seed")
+                    if seed_lock and existing_seed is not None:
+                        applied_seed = int(existing_seed)
+                    else:
+                        applied_seed = random.randint(1, 2**32 - 1)
 
-        return workflow
+                node["inputs"]["seed"] = applied_seed
+
+        return workflow, applied_seed
 
     # --------------------------------------------
     # Queue workflow
@@ -205,7 +213,7 @@ class ComfyClient:
         print("Uploading input image...")
         image_name = self.upload_image(input_image)
 
-        prompt_ids = []
+        prompt_jobs = []
 
         # Precompute original CLIP features once
         original_features = self.encode_image_features(input_image)
@@ -220,20 +228,23 @@ class ComfyClient:
                 prompt
             )
 
-            task_workflow = self.apply_sampler_settings(
+            task_workflow, task_seed = self.apply_sampler_settings(
                 task_workflow,
                 denoise,
                 seed_lock
             )
 
             prompt_id = self.queue_prompt(task_workflow)
-            prompt_ids.append(prompt_id)
+            prompt_jobs.append({
+                "prompt_id": prompt_id,
+                "seed": task_seed,
+            })
 
         print("Waiting for results...")
         results = []
 
-        for prompt_id in prompt_ids:
-            outputs = self.wait_for_completion(prompt_id)
+        for job in prompt_jobs:
+            outputs = self.wait_for_completion(job["prompt_id"])
 
             for img_info in outputs:
                 img = self.download_image(img_info)
@@ -242,7 +253,9 @@ class ComfyClient:
 
                 results.append({
                     "image": img,
-                    "score": score
+                    "score": score,
+                    "seed": job["seed"],
+                    "prompt_id": job["prompt_id"],
                 })
                 break  # 1 output image per request
 

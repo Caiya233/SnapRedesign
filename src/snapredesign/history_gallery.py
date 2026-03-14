@@ -2,12 +2,17 @@ import tkinter as tk
 from pathlib import Path
 from PIL import Image
 import customtkinter as ctk
+import json
+from tkinter import messagebox
 
 from snapredesign.theme import (
     setup_theme,
     BG, PANEL, PANEL_2, CARD, BORDER, ACCENT, TEXT, MUTED,
     title_font, body_font, mono_font
 )
+
+
+HISTORY_PATH = Path("outputs/history.json")
 
 
 def draw_hud_panel(canvas, x, y, w, h, cut=18, fill=PANEL, outline=BORDER, width=2, tag="hud"):
@@ -28,10 +33,31 @@ def draw_scanlines(canvas, width, height, spacing=6, color="#0d1824"):
         canvas.create_line(0, y, width, y, fill=color, width=1, tags="scanline")
 
 
+def load_history_metadata():
+    if not HISTORY_PATH.exists():
+        return {}
+
+    try:
+        with open(HISTORY_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+
+    if not isinstance(data, list):
+        return {}
+
+    metadata = {}
+    for entry in data:
+        image_name = entry.get("image_name")
+        if image_name:
+            metadata[image_name] = entry
+    return metadata
+
+
 def open_gallery(master=None):
     output_dir = Path("outputs")
     if not output_dir.exists():
-        print("No outputs folder found.")
+        messagebox.showinfo("SnapRedesign", "No outputs folder found.", parent=master)
         return
 
     image_files = sorted(
@@ -41,14 +67,16 @@ def open_gallery(master=None):
     )
 
     if not image_files:
-        print("No images found in outputs.")
+        messagebox.showinfo("SnapRedesign", "No images found in outputs.", parent=master)
         return
+
+    history_metadata = load_history_metadata()
 
     setup_theme()
 
     root = ctk.CTkToplevel(master)
     root.title("SnapRedesign // History Gallery")
-    root.geometry("1180x820")
+    root.geometry("1380x820")
     root.configure(fg_color=BG)
 
     bg = tk.Canvas(root, bg=BG, highlightthickness=0)
@@ -95,6 +123,15 @@ def open_gallery(master=None):
         justify="center"
     ).place(x=38, y=140)
 
+    details = ctk.CTkFrame(
+        bg,
+        fg_color=PANEL_2,
+        border_width=2,
+        border_color=BORDER,
+        corner_radius=18
+    )
+    details.place(relx=0.76, y=138, relwidth=0.21, relheight=0.77)
+
     gallery = ctk.CTkScrollableFrame(
         bg,
         fg_color=PANEL,
@@ -102,15 +139,72 @@ def open_gallery(master=None):
         border_color=BORDER,
         corner_radius=18
     )
-    gallery.place(x=78, y=138, relwidth=0.89, relheight=0.77)
+    gallery.place(x=78, y=138, relwidth=0.63, relheight=0.77)
 
-    columns = 4
+    ctk.CTkLabel(
+        details,
+        text="GENERATION DETAILS",
+        text_color=ACCENT,
+        font=title_font(18)
+    ).pack(anchor="w", padx=16, pady=(16, 6))
+
+    details_summary = ctk.CTkLabel(
+        details,
+        text="Select an output card to inspect its prompt, preset, seed, and score.",
+        text_color=MUTED,
+        font=body_font(12),
+        justify="left",
+        wraplength=240
+    )
+    details_summary.pack(anchor="w", padx=16, pady=(0, 16))
+
+    details_info = ctk.CTkTextbox(
+        details,
+        width=250,
+        height=520,
+        fg_color="#0b1220",
+        border_width=1,
+        border_color="#22324a",
+        text_color=TEXT,
+        font=body_font(12)
+    )
+    details_info.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+
+    def update_details(img_path, metadata):
+        if metadata:
+            details_text = (
+                f"File: {img_path.name}\n"
+                f"Preset: {metadata.get('preset', 'unknown')}\n"
+                f"Seed: {metadata.get('seed', 'unknown')}\n"
+                f"CLIP score: {metadata.get('score', 'unknown')}\n"
+                f"Denoise: {metadata.get('denoise', 'unknown')}\n"
+                f"Batch size: {metadata.get('batch_size', 'unknown')}\n"
+                f"Seed lock: {metadata.get('seed_lock', 'unknown')}\n"
+                f"Prompt ID: {metadata.get('prompt_id', 'unknown')}\n"
+                f"Created: {metadata.get('created_at', 'unknown')}\n\n"
+                f"Prompt:\n{metadata.get('prompt', '')}\n\n"
+                f"Negative:\n{metadata.get('negative_prompt', '')}"
+            )
+        else:
+            details_text = (
+                f"File: {img_path.name}\n\n"
+                "This image does not have saved metadata.\n"
+                "It was likely generated before history tracking was added."
+            )
+
+        details_info.configure(state="normal")
+        details_info.delete("1.0", "end")
+        details_info.insert("1.0", details_text)
+        details_info.configure(state="disabled")
+
+    columns = 3
     thumb_size = (210, 210)
     root.image_refs = []
 
     for index, img_path in enumerate(image_files):
         row = index // columns
         col = index % columns
+        metadata = history_metadata.get(img_path.name)
 
         card = ctk.CTkFrame(
             gallery,
@@ -141,10 +235,25 @@ def open_gallery(master=None):
 
             ctk.CTkLabel(
                 card,
-                text="OUTPUT ARCHIVE",
+                text=(
+                    f"PRESET  {metadata.get('preset', 'unknown')}\n"
+                    f"SEED    {metadata.get('seed', 'unknown')}\n"
+                    f"SCORE   {metadata.get('score', 'unknown')}"
+                ) if metadata else "LEGACY OUTPUT\nNO METADATA",
                 text_color=BORDER,
-                font=mono_font(11)
-            ).pack(padx=10, pady=(0, 10))
+                font=mono_font(11),
+                justify="left"
+            ).pack(padx=10, pady=(0, 8))
+
+            ctk.CTkButton(
+                card,
+                text="View Details",
+                command=lambda p=img_path, m=metadata: update_details(p, m),
+                fg_color=ACCENT,
+                hover_color="#ff4ce0",
+                text_color="#06111a",
+                width=150
+            ).pack(padx=10, pady=(0, 12))
 
         except Exception as e:
             ctk.CTkLabel(
@@ -154,6 +263,7 @@ def open_gallery(master=None):
                 font=body_font(12)
             ).pack(padx=10, pady=10)
 
+    update_details(image_files[0], history_metadata.get(image_files[0].name))
     redraw()
 
 if __name__ == "__main__":
