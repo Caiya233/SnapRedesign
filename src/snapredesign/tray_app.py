@@ -57,7 +57,7 @@ def create_icon():
         item("Snip + Redesign (Ctrl+Shift+S)", run_snip, default=True),
         item("History Gallery", show_history),
         item("Open Outputs", open_outputs),
-        item("Choose Style", open_style_window),
+        item("Open Prompt Lab", open_style_window),
         item("Quit", quit_app),
     )
 

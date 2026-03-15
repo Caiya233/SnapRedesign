@@ -4,28 +4,12 @@ from PIL import Image
 
 from snapredesign.theme import (
     apply_responsive_geometry,
+    draw_hud_panel,
+    draw_scanlines,
     setup_theme,
     BG, PANEL, PANEL_2, CARD, BORDER, ACCENT, TEXT, MUTED, SUCCESS,
     title_font, body_font, mono_font
 )
-
-
-def draw_hud_panel(canvas, x, y, w, h, cut=18, fill=PANEL, outline=BORDER, width=2, tag="hud"):
-    points = [
-        x + cut, y,
-        x + w, y,
-        x + w, y + h - cut,
-        x + w - cut, y + h,
-        x, y + h,
-        x, y + cut
-    ]
-    canvas.create_polygon(points, fill=fill, outline=outline, width=width, tags=tag)
-
-
-def draw_scanlines(canvas, width, height, spacing=6, color="#0d1824"):
-    canvas.delete("scanline")
-    for y in range(0, height, spacing):
-        canvas.create_line(0, y, width, y, fill=color, width=1, tags="scanline")
 
 ORIGINAL_PREVIEW_SIZE = (240, 240)
 RESULT_PREVIEW_SIZE = (360, 280)
@@ -120,7 +104,7 @@ def show_results(original_path, results, master=None):
 
     ctk.CTkLabel(
         sidebar,
-        text="Original capture // identity source",
+        text="Original image",
         text_color=MUTED,
         font=body_font(12)
     ).grid(row=2, column=0, sticky="w", padx=18, pady=(0, 12))
@@ -131,21 +115,21 @@ def show_results(original_path, results, master=None):
 
     ctk.CTkLabel(
         sidebar,
-        text="SORT MODE",
+        text="RANKING",
         text_color=BORDER,
         font=mono_font(12)
     ).grid(row=4, column=0, sticky="w", padx=18)
 
     ctk.CTkLabel(
         sidebar,
-        text="CLIP similarity descending",
+        text="Sorted by CLIP similarity",
         text_color=TEXT,
         font=body_font(12)
     ).grid(row=5, column=0, sticky="w", padx=18, pady=(2, 14))
 
     ctk.CTkLabel(
         sidebar,
-        text="HUD NOTES",
+        text="NOTES",
         text_color=BORDER,
         font=mono_font(12)
     ).grid(row=6, column=0, sticky="w", padx=18, pady=(10, 4))
@@ -161,8 +145,8 @@ def show_results(original_path, results, master=None):
     info.grid(row=7, column=0, sticky="nsew", padx=18, pady=(0, 18))
     info.insert(
         "1.0",
-        "Higher CLIP score means the redesign stayed closer to the captured character.\n"
-        "Top match is highlighted with a stronger accent border."
+        "Higher CLIP similarity usually means the result stayed closer to the source image.\n"
+        "The best match is highlighted."
     )
     info.configure(state="disabled")
 
@@ -187,7 +171,7 @@ def show_results(original_path, results, master=None):
         card.grid_columnconfigure(0, weight=1)
         card.grid_rowconfigure(1, weight=1)
 
-        tag_text = "TOP MATCH" if i == 0 else f"VARIANT {i + 1}"
+        tag_text = "BEST MATCH" if i == 0 else f"OPTION {i + 1}"
 
         ctk.CTkLabel(
             card,

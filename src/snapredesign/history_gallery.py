@@ -7,6 +7,8 @@ from tkinter import messagebox
 
 from snapredesign.theme import (
     apply_responsive_geometry,
+    draw_hud_panel,
+    draw_scanlines,
     setup_theme,
     BG, PANEL, PANEL_2, CARD, BORDER, ACCENT, TEXT, MUTED,
     title_font, body_font, mono_font
@@ -14,25 +16,6 @@ from snapredesign.theme import (
 
 
 HISTORY_PATH = Path("outputs/history.json")
-
-
-def draw_hud_panel(canvas, x, y, w, h, cut=18, fill=PANEL, outline=BORDER, width=2, tag="hud"):
-    points = [
-        x + cut, y,
-        x + w, y,
-        x + w, y + h - cut,
-        x + w - cut, y + h,
-        x, y + h,
-        x, y + cut
-    ]
-    canvas.create_polygon(points, fill=fill, outline=outline, width=width, tags=tag)
-
-
-def draw_scanlines(canvas, width, height, spacing=6, color="#0d1824"):
-    canvas.delete("scanline")
-    for y in range(0, height, spacing):
-        canvas.create_line(0, y, width, y, fill=color, width=1, tags="scanline")
-
 GALLERY_THUMB_SIZE = 190
 GALLERY_WRAP_LENGTH = 190
 
@@ -178,7 +161,7 @@ def open_gallery(master=None):
 
     details_summary = ctk.CTkLabel(
         details,
-        text="Select an output card to inspect its prompt, preset, seed, and score.",
+        text="Select an image to inspect the prompt and generation settings.",
         text_color=MUTED,
         font=body_font(12),
         justify="left",
@@ -292,7 +275,7 @@ def open_gallery(master=None):
 
         button = ctk.CTkButton(
             card,
-            text="View Details",
+            text="Details",
             command=lambda p=img_path, m=metadata: update_details(p, m),
             fg_color=ACCENT,
             hover_color="#ff4ce0",

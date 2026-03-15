@@ -4,6 +4,8 @@ import customtkinter as ctk
 from snapredesign.openai_prompt import (
     PRESETS,
     PROMPT_MODES,
+    PROMPT_MODE_LABELS,
+    PROMPT_MODE_NAMES,
     LIGHTING,
     CAMERA,
     COLOR_PALETTES,
@@ -11,32 +13,17 @@ from snapredesign.openai_prompt import (
     DETAIL,
     build_prompt_from_settings,
     default_prompt_settings,
+    normalize_prompt_mode,
 )
 from snapredesign.style_state import load_style_state, save_style_state
 from snapredesign.theme import (
     apply_responsive_geometry,
+    draw_hud_panel,
+    draw_scanlines,
     setup_theme,
     BG, PANEL, PANEL_2, BORDER, ACCENT, TEXT, MUTED,
     title_font, body_font, mono_font
 )
-
-
-def draw_hud_panel(canvas, x, y, w, h, cut=18, fill=PANEL, outline=BORDER, width=2):
-    points = [
-        x + cut, y,
-        x + w, y,
-        x + w, y + h - cut,
-        x + w - cut, y + h,
-        x, y + h,
-        x, y + cut
-    ]
-    canvas.create_polygon(points, fill=fill, outline=outline, width=width, smooth=False, tags="bg")
-
-
-def draw_scanlines(canvas, width, height, spacing=6, color="#0d1824"):
-    canvas.delete("scanline")
-    for y in range(0, height, spacing):
-        canvas.create_line(0, y, width, y, fill=color, width=1, tags="scanline")
 
 
 def choose_style(master=None):
@@ -86,7 +73,7 @@ def choose_style(master=None):
         )
         base.create_text(
             max(60, int(w * 0.052)), 68,
-            text="preset control // manual prompting // live preview",
+            text="Choose a style, adjust the settings, and preview the prompt.",
             fill=MUTED,
             font=("Segoe UI", 11),
             anchor="nw",
@@ -137,7 +124,8 @@ def choose_style(master=None):
         return row + 1
 
     # variables
-    mode_var = ctk.StringVar(value=saved.get("mode", defaults["mode"]))
+    saved_mode = normalize_prompt_mode(saved.get("mode", defaults["mode"]))
+    mode_var = ctk.StringVar(value=PROMPT_MODE_NAMES.get(saved_mode, "Preset Only"))
     preset_var = ctk.StringVar(value=saved.get("preset", defaults["preset"]))
     subject_var = ctk.StringVar(value=saved.get("subject", defaults["subject"]))
     lighting_var = ctk.StringVar(value=saved.get("lighting", defaults["lighting"]))
@@ -153,7 +141,7 @@ def choose_style(master=None):
     mode_menu = ctk.CTkOptionMenu(
         left,
         variable=mode_var,
-        values=PROMPT_MODES,
+        values=list(PROMPT_MODE_LABELS.keys()),
         fg_color="#172033",
         button_color=ACCENT,
         button_hover_color="#ff4ce0",
@@ -289,7 +277,7 @@ def choose_style(master=None):
 
     seed_box = ctk.CTkCheckBox(
         right,
-        text="Lock Seed // preserve identity",
+        text="Use the same seed each run",
         variable=seed_var,
         text_color=TEXT,
         fg_color=ACCENT,
@@ -300,13 +288,13 @@ def choose_style(master=None):
     seed_box.grid(row=right_row, column=0, sticky="w", pady=(0, 20))
     right_row += 1
 
-    right_row = add_section_label(right, right_row, "FINAL PROMPT PREVIEW")
+    right_row = add_section_label(right, right_row, "PROMPT PREVIEW")
     preview_box = ctk.CTkTextbox(right, height=220, fg_color="#0b1220", text_color=TEXT)
     preview_box.grid(row=right_row, column=0, sticky="ew", pady=(0, 14))
 
     def collect_settings():
         return {
-            "mode": mode_var.get(),
+            "mode": PROMPT_MODE_LABELS.get(mode_var.get(), PROMPT_MODES[0]),
             "preset": preset_var.get(),
             "subject": subject_var.get().strip(),
             "custom_prompt": custom_box.get("1.0", "end").strip(),
@@ -341,7 +329,7 @@ def choose_style(master=None):
         root.destroy()
 
     def reset_defaults():
-        mode_var.set(defaults["mode"])
+        mode_var.set(PROMPT_MODE_NAMES.get(defaults["mode"], "Preset Only"))
         preset_var.set(defaults["preset"])
         subject_var.set(defaults["subject"])
         lighting_var.set(defaults["lighting"])
@@ -377,7 +365,7 @@ def choose_style(master=None):
 
     reset_btn = ctk.CTkButton(
         buttons,
-        text="RESET",
+        text="Reset",
         command=reset_defaults,
         width=180,
         height=40,
@@ -389,7 +377,7 @@ def choose_style(master=None):
 
     save_btn = ctk.CTkButton(
         buttons,
-        text="SAVE + GENERATE",
+        text="Generate",
         command=confirm,
         width=260,
         height=40,

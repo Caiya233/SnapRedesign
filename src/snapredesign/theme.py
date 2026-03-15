@@ -18,6 +18,24 @@ def setup_theme():
     ctk.set_default_color_theme("dark-blue")
 
 
+def draw_hud_panel(canvas, x, y, w, h, cut=18, fill=PANEL, outline=BORDER, width=2, tag="hud"):
+    points = [
+        x + cut, y,
+        x + w, y,
+        x + w, y + h - cut,
+        x + w - cut, y + h,
+        x, y + h,
+        x, y + cut,
+    ]
+    canvas.create_polygon(points, fill=fill, outline=outline, width=width, smooth=False, tags=tag)
+
+
+def draw_scanlines(canvas, width, height, spacing=6, color="#0d1824", tag="scanline"):
+    canvas.delete(tag)
+    for y in range(0, height, spacing):
+        canvas.create_line(0, y, width, y, fill=color, width=1, tags=tag)
+
+
 def apply_responsive_geometry(
     window,
     width_ratio=0.84,
