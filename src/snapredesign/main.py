@@ -11,6 +11,7 @@ from tkinter import messagebox, ttk
 
 from snapredesign.snip_overlay import snip_screen
 from snapredesign.comfy_client import ComfyClient
+from snapredesign.instance_lock import SingleInstanceLock
 from snapredesign.openai_prompt import build_prompt_from_settings
 from snapredesign.viewer import show_results
 from snapredesign.tray_app import create_icon
@@ -29,6 +30,7 @@ _result_queue = queue.Queue()
 _loading_window = None
 _loading_progress = None
 _generation_in_progress = False
+_instance_lock = None
 
 
 def enable_dpi_awareness():
@@ -46,6 +48,18 @@ def load_config():
         with open(CONFIG_PATH, encoding="utf-8") as f:
             return json.load(f)
     return {}
+
+
+def show_single_instance_warning():
+    try:
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            "SnapRedesign is already running in the system tray.",
+            "SnapRedesign",
+            0x40,
+        )
+    except Exception:
+        print("SnapRedesign is already running in the system tray.")
 
 
 def load_workflow():
@@ -269,11 +283,16 @@ def start_pipeline():
 
 
 def shutdown_app():
-    global _app_root, _tray_icon, _generation_in_progress
+    global _app_root, _tray_icon, _generation_in_progress, _instance_lock
 
     try:
         if _tray_icon is not None:
             _tray_icon.stop()
+    except Exception:
+        pass
+
+    try:
+        keyboard.clear_all_hotkeys()
     except Exception:
         pass
 
@@ -287,11 +306,24 @@ def shutdown_app():
     except Exception:
         pass
 
+    try:
+        if _instance_lock is not None:
+            _instance_lock.release()
+    except Exception:
+        pass
+
+    _instance_lock = None
+
 
 def main():
-    global _app_root, _tray_icon
+    global _app_root, _tray_icon, _instance_lock
 
     enable_dpi_awareness()
+
+    _instance_lock = SingleInstanceLock("Local\\SnapRedesignTrayApp")
+    if not _instance_lock.acquire():
+        show_single_instance_warning()
+        return
 
     print("SnapRedesign running")
     print("CTRL+SHIFT+S to snip")

@@ -14,6 +14,7 @@ from snapredesign.openai_prompt import (
 )
 from snapredesign.style_state import load_style_state, save_style_state
 from snapredesign.theme import (
+    apply_responsive_geometry,
     setup_theme,
     BG, PANEL, PANEL_2, BORDER, ACCENT, TEXT, MUTED,
     title_font, body_font, mono_font
@@ -42,12 +43,19 @@ def choose_style(master=None):
     setup_theme()
     defaults = default_prompt_settings()
     saved = load_style_state()
-    result = saved.copy()
+    result = defaults.copy()
+    result.update(saved)
     confirmed = {"value": False}
 
     root = ctk.CTkToplevel(master)
     root.title("SnapRedesign // Prompt Lab")
-    root.geometry("1080x860")
+    apply_responsive_geometry(
+        root,
+        width_ratio=0.84,
+        height_ratio=0.9,
+        min_size=(920, 700),
+        max_size=(1500, 1080),
+    )
     root.configure(fg_color=BG)
 
     root.lift()
@@ -57,16 +65,19 @@ def choose_style(master=None):
     base = tk.Canvas(root, bg=BG, highlightthickness=0)
     base.pack(fill="both", expand=True)
 
-    def redraw_background(event=None):
+    redraw_job = {"id": None}
+
+    def redraw_background():
+        redraw_job["id"] = None
         base.delete("bg")
         w = base.winfo_width()
         h = base.winfo_height()
         draw_hud_panel(base, 16, 16, w - 32, h - 32, cut=26, fill=PANEL, outline=BORDER, width=2)
         draw_hud_panel(base, 34, 84, w - 68, h - 120, cut=22, fill=PANEL_2, outline="#22324a", width=1)
-        draw_scanlines(base, w, h)
+        draw_scanlines(base, w, h, spacing=8)
 
         base.create_text(
-            58, 36,
+            max(58, int(w * 0.05)), 36,
             text="SNAPREDESIGN // PROMPT LAB",
             fill=ACCENT,
             font=("Segoe UI", 22, "bold"),
@@ -74,7 +85,7 @@ def choose_style(master=None):
             tags="bg"
         )
         base.create_text(
-            60, 68,
+            max(60, int(w * 0.052)), 68,
             text="preset control // manual prompting // live preview",
             fill=MUTED,
             font=("Segoe UI", 11),
@@ -82,7 +93,12 @@ def choose_style(master=None):
             tags="bg"
         )
 
-    base.bind("<Configure>", redraw_background)
+    def schedule_redraw_background(_event=None):
+        if redraw_job["id"] is not None:
+            root.after_cancel(redraw_job["id"])
+        redraw_job["id"] = root.after(50, redraw_background)
+
+    base.bind("<Configure>", schedule_redraw_background)
 
     ctk.CTkLabel(
         base,
@@ -90,13 +106,35 @@ def choose_style(master=None):
         text_color=BORDER,
         font=title_font(15),
         justify="center"
-    ).place(x=26, y=120)
+    ).place(relx=0.02, rely=0.15, anchor="nw")
 
-    left = ctk.CTkFrame(base, fg_color="transparent", width=470, height=680)
-    left.place(x=72, y=110)
+    content = ctk.CTkFrame(base, fg_color="transparent")
+    content.place(relx=0.07, rely=0.13, relwidth=0.88, relheight=0.7)
+    content.grid_columnconfigure(0, weight=1, uniform="prompt-column")
+    content.grid_columnconfigure(1, weight=1, uniform="prompt-column")
+    content.grid_rowconfigure(0, weight=1)
 
-    right = ctk.CTkFrame(base, fg_color="transparent", width=470, height=680)
-    right.place(x=560, y=110)
+    scroll_kwargs = {
+        "fg_color": "transparent",
+        "scrollbar_button_color": "#1b2740",
+        "scrollbar_button_hover_color": "#243657",
+    }
+    left = ctk.CTkScrollableFrame(content, **scroll_kwargs)
+    left.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
+    left.grid_columnconfigure(0, weight=1)
+
+    right = ctk.CTkScrollableFrame(content, **scroll_kwargs)
+    right.grid(row=0, column=1, sticky="nsew", padx=(14, 0))
+    right.grid_columnconfigure(0, weight=1)
+
+    def add_section_label(parent, row, text):
+        ctk.CTkLabel(
+            parent,
+            text=text,
+            text_color=BORDER,
+            font=mono_font(12),
+        ).grid(row=row, column=0, sticky="w", pady=(0, 6))
+        return row + 1
 
     # variables
     mode_var = ctk.StringVar(value=saved.get("mode", defaults["mode"]))
@@ -110,12 +148,12 @@ def choose_style(master=None):
     seed_var = ctk.BooleanVar(value=saved.get("seed_lock", defaults["seed_lock"]))
 
     # left panel
-    ctk.CTkLabel(left, text="PROMPT MODE", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
+    left_row = 0
+    left_row = add_section_label(left, left_row, "PROMPT MODE")
     mode_menu = ctk.CTkOptionMenu(
         left,
         variable=mode_var,
         values=PROMPT_MODES,
-        width=420,
         fg_color="#172033",
         button_color=ACCENT,
         button_hover_color="#ff4ce0",
@@ -123,14 +161,14 @@ def choose_style(master=None):
         dropdown_hover_color="#1b2740",
         text_color=TEXT
     )
-    mode_menu.pack(anchor="w", pady=(0, 16))
+    mode_menu.grid(row=left_row, column=0, sticky="ew", pady=(0, 16))
+    left_row += 1
 
-    ctk.CTkLabel(left, text="PRESET", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
+    left_row = add_section_label(left, left_row, "PRESET")
     preset_menu = ctk.CTkOptionMenu(
         left,
         variable=preset_var,
         values=list(PRESETS.keys()),
-        width=420,
         fg_color="#172033",
         button_color=ACCENT,
         button_hover_color="#ff4ce0",
@@ -138,25 +176,35 @@ def choose_style(master=None):
         dropdown_hover_color="#1b2740",
         text_color=TEXT
     )
-    preset_menu.pack(anchor="w", pady=(0, 16))
+    preset_menu.grid(row=left_row, column=0, sticky="ew", pady=(0, 16))
+    left_row += 1
 
-    ctk.CTkLabel(left, text="SUBJECT", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    subject_entry = ctk.CTkEntry(left, textvariable=subject_var, width=420)
-    subject_entry.pack(anchor="w", pady=(0, 16))
+    left_row = add_section_label(left, left_row, "SUBJECT")
+    subject_entry = ctk.CTkEntry(left, textvariable=subject_var)
+    subject_entry.grid(row=left_row, column=0, sticky="ew", pady=(0, 16))
+    left_row += 1
 
-    ctk.CTkLabel(left, text="CUSTOM POSITIVE PROMPT", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    custom_box = ctk.CTkTextbox(left, width=420, height=140, fg_color="#0b1220", text_color=TEXT)
-    custom_box.pack(anchor="w", pady=(0, 16))
+    left_row = add_section_label(left, left_row, "CUSTOM POSITIVE PROMPT")
+    custom_box = ctk.CTkTextbox(left, height=140, fg_color="#0b1220", text_color=TEXT)
+    custom_box.grid(row=left_row, column=0, sticky="ew", pady=(0, 16))
     custom_box.insert("1.0", saved.get("custom_prompt", ""))
+    left_row += 1
 
-    ctk.CTkLabel(left, text="NEGATIVE PROMPT", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    negative_box = ctk.CTkTextbox(left, width=420, height=110, fg_color="#0b1220", text_color=TEXT)
-    negative_box.pack(anchor="w", pady=(0, 16))
+    left_row = add_section_label(left, left_row, "NEGATIVE PROMPT")
+    negative_box = ctk.CTkTextbox(left, height=110, fg_color="#0b1220", text_color=TEXT)
+    negative_box.grid(row=left_row, column=0, sticky="ew", pady=(0, 16))
     negative_box.insert("1.0", saved.get("negative_prompt", defaults["negative_prompt"]))
+    left_row += 1
 
-    ctk.CTkLabel(left, text="REDESIGN STRENGTH", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    redesign_value = ctk.CTkLabel(left, text=f"{saved.get('redesign_strength', defaults['redesign_strength']):.2f}", text_color=TEXT, font=body_font(12))
-    redesign_value.pack(anchor="e", pady=(0, 4))
+    left_row = add_section_label(left, left_row, "REDESIGN STRENGTH")
+    redesign_value = ctk.CTkLabel(
+        left,
+        text=f"{saved.get('redesign_strength', defaults['redesign_strength']):.2f}",
+        text_color=TEXT,
+        font=body_font(12),
+    )
+    redesign_value.grid(row=left_row, column=0, sticky="e", pady=(0, 4))
+    left_row += 1
 
     def on_redesign_change(value):
         redesign_value.configure(text=f"{float(value):.2f}")
@@ -168,16 +216,15 @@ def choose_style(master=None):
         fg_color="#1a2133", command=on_redesign_change
     )
     redesign_slider.set(float(saved.get("redesign_strength", defaults["redesign_strength"])))
-    redesign_slider.pack(fill="x", pady=(0, 16))
+    redesign_slider.grid(row=left_row, column=0, sticky="ew", pady=(0, 16))
 
     # right panel
-    def labeled_menu(parent, label, variable, values):
-        ctk.CTkLabel(parent, text=label, text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
+    def labeled_menu(parent, row, label, variable, values):
+        row = add_section_label(parent, row, label)
         widget = ctk.CTkOptionMenu(
             parent,
             variable=variable,
             values=values,
-            width=420,
             fg_color="#172033",
             button_color=ACCENT,
             button_hover_color="#ff4ce0",
@@ -186,18 +233,25 @@ def choose_style(master=None):
             text_color=TEXT,
             command=lambda _: update_preview()
         )
-        widget.pack(anchor="w", pady=(0, 16))
-        return widget
+        widget.grid(row=row, column=0, sticky="ew", pady=(0, 16))
+        return widget, row + 1
 
-    labeled_menu(right, "LIGHTING", lighting_var, LIGHTING)
-    labeled_menu(right, "CAMERA", camera_var, CAMERA)
-    labeled_menu(right, "COLOR PALETTE", palette_var, COLOR_PALETTES)
-    labeled_menu(right, "ENVIRONMENT", environment_var, ENVIRONMENTS)
-    labeled_menu(right, "DETAIL LEVEL", detail_var, DETAIL)
+    right_row = 0
+    _, right_row = labeled_menu(right, right_row, "LIGHTING", lighting_var, LIGHTING)
+    _, right_row = labeled_menu(right, right_row, "CAMERA", camera_var, CAMERA)
+    _, right_row = labeled_menu(right, right_row, "COLOR PALETTE", palette_var, COLOR_PALETTES)
+    _, right_row = labeled_menu(right, right_row, "ENVIRONMENT", environment_var, ENVIRONMENTS)
+    _, right_row = labeled_menu(right, right_row, "DETAIL LEVEL", detail_var, DETAIL)
 
-    ctk.CTkLabel(right, text="DENOISE", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    denoise_value = ctk.CTkLabel(right, text=f"{saved.get('denoise', defaults['denoise']):.2f}", text_color=TEXT, font=body_font(12))
-    denoise_value.pack(anchor="e", pady=(0, 4))
+    right_row = add_section_label(right, right_row, "DENOISE")
+    denoise_value = ctk.CTkLabel(
+        right,
+        text=f"{saved.get('denoise', defaults['denoise']):.2f}",
+        text_color=TEXT,
+        font=body_font(12),
+    )
+    denoise_value.grid(row=right_row, column=0, sticky="e", pady=(0, 4))
+    right_row += 1
 
     def on_denoise_change(value):
         denoise_value.configure(text=f"{float(value):.2f}")
@@ -208,11 +262,18 @@ def choose_style(master=None):
         fg_color="#1a2133", command=on_denoise_change
     )
     denoise_slider.set(float(saved.get("denoise", defaults["denoise"])))
-    denoise_slider.pack(fill="x", pady=(0, 16))
+    denoise_slider.grid(row=right_row, column=0, sticky="ew", pady=(0, 16))
+    right_row += 1
 
-    ctk.CTkLabel(right, text="BATCH SIZE", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    batch_value = ctk.CTkLabel(right, text=str(saved.get("batch_size", defaults["batch_size"])), text_color=TEXT, font=body_font(12))
-    batch_value.pack(anchor="e", pady=(0, 4))
+    right_row = add_section_label(right, right_row, "BATCH SIZE")
+    batch_value = ctk.CTkLabel(
+        right,
+        text=str(saved.get("batch_size", defaults["batch_size"])),
+        text_color=TEXT,
+        font=body_font(12),
+    )
+    batch_value.grid(row=right_row, column=0, sticky="e", pady=(0, 4))
+    right_row += 1
 
     def on_batch_change(value):
         batch_value.configure(text=str(int(float(value))))
@@ -223,7 +284,8 @@ def choose_style(master=None):
         fg_color="#1a2133", command=on_batch_change
     )
     batch_slider.set(int(saved.get("batch_size", defaults["batch_size"])))
-    batch_slider.pack(fill="x", pady=(0, 16))
+    batch_slider.grid(row=right_row, column=0, sticky="ew", pady=(0, 16))
+    right_row += 1
 
     seed_box = ctk.CTkCheckBox(
         right,
@@ -235,11 +297,12 @@ def choose_style(master=None):
         border_color=BORDER,
         command=lambda: update_preview()
     )
-    seed_box.pack(anchor="w", pady=(0, 20))
+    seed_box.grid(row=right_row, column=0, sticky="w", pady=(0, 20))
+    right_row += 1
 
-    ctk.CTkLabel(right, text="FINAL PROMPT PREVIEW", text_color=BORDER, font=mono_font(12)).pack(anchor="w", pady=(0, 6))
-    preview_box = ctk.CTkTextbox(right, width=420, height=180, fg_color="#0b1220", text_color=TEXT)
-    preview_box.pack(anchor="w", pady=(0, 14))
+    right_row = add_section_label(right, right_row, "FINAL PROMPT PREVIEW")
+    preview_box = ctk.CTkTextbox(right, height=220, fg_color="#0b1220", text_color=TEXT)
+    preview_box.grid(row=right_row, column=0, sticky="ew", pady=(0, 14))
 
     def collect_settings():
         return {
@@ -307,8 +370,10 @@ def choose_style(master=None):
     custom_box.bind("<KeyRelease>", update_preview)
     negative_box.bind("<KeyRelease>", update_preview)
 
-    buttons = ctk.CTkFrame(base, fg_color="transparent", width=970, height=50)
-    buttons.place(x=72, y=795)
+    buttons = ctk.CTkFrame(base, fg_color="transparent")
+    buttons.place(relx=0.07, rely=0.86, relwidth=0.88, relheight=0.07)
+    buttons.grid_columnconfigure(0, weight=1)
+    buttons.grid_columnconfigure(1, weight=1)
 
     reset_btn = ctk.CTkButton(
         buttons,
@@ -320,7 +385,7 @@ def choose_style(master=None):
         hover_color="#243657",
         text_color=TEXT
     )
-    reset_btn.pack(side="left", padx=(0, 12))
+    reset_btn.grid(row=0, column=0, sticky="w", padx=(0, 12), pady=6)
 
     save_btn = ctk.CTkButton(
         buttons,
@@ -333,9 +398,9 @@ def choose_style(master=None):
         text_color="#05070d",
         font=title_font(14)
     )
-    save_btn.pack(side="right")
+    save_btn.grid(row=0, column=1, sticky="e", pady=6)
 
-    redraw_background()
+    schedule_redraw_background()
     update_preview()
 
     root.wait_window()
