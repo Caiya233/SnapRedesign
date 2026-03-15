@@ -31,6 +31,7 @@ _loading_window = None
 _loading_progress = None
 _generation_in_progress = False
 _instance_lock = None
+_result_windows = []
 
 
 def enable_dpi_awareness():
@@ -171,6 +172,18 @@ def show_pipeline_error(error_text):
     messagebox.showerror("SnapRedesign // Generation Failed", error_text, parent=parent)
 
 
+def track_result_window(window):
+    _result_windows.append(window)
+
+    def cleanup(_event=None):
+        try:
+            _result_windows.remove(window)
+        except ValueError:
+            pass
+
+    window.bind("<Destroy>", cleanup, add="+")
+
+
 def generate_images_worker(image_path, style):
     try:
         prompt = build_prompt_from_settings(style)
@@ -231,7 +244,8 @@ def poll_results():
                 _, image_path, images = item
                 _generation_in_progress = False
                 hide_loading()
-                show_results(image_path, images, master=_app_root)
+                result_window = show_results(image_path, images, master=_app_root)
+                track_result_window(result_window)
 
             elif item[0] == "error":
                 _, error_text = item
@@ -241,6 +255,10 @@ def poll_results():
 
     except queue.Empty:
         pass
+    except Exception as e:
+        _generation_in_progress = False
+        hide_loading()
+        show_pipeline_error(str(e))
 
     if _app_root is not None and _app_root.winfo_exists():
         _app_root.after(200, poll_results)

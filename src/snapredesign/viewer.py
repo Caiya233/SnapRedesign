@@ -36,8 +36,18 @@ def show_results(original_path, results, master=None):
     root.configure(fg_color=BG)
 
     # Keep this window above the hidden root and usable immediately
+    root.deiconify()
     root.lift()
     root.focus_force()
+    root.attributes("-topmost", True)
+
+    def release_topmost():
+        if root.winfo_exists():
+            root.attributes("-topmost", False)
+
+    root.after(250, release_topmost)
+    root.after_idle(root.lift)
+    root.after_idle(root.focus_force)
 
     canvas = tk.Canvas(root, bg=BG, highlightthickness=0)
     canvas.pack(fill="both", expand=True)

@@ -33,7 +33,7 @@ class ComfyClient:
         return r.json()["name"]
 
     def _iter_ksamplers(self, workflow):
-        for node in workflow.values():
+        for node in list(workflow.values()):
             if node.get("class_type") == "KSampler":
                 yield node
 
