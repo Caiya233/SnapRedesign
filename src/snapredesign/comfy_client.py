@@ -14,16 +14,12 @@ class ComfyClient:
 
     def __init__(self, config=None):
         config = config or {}
-        self.server = config.get("comfy_url", "http://127.0.0.1:8000")
+        self.server = config.get("comfy_url", "http://127.0.0.1:8188")
 
         # CLIP setup
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
         self.clip_model.eval()
-
-    # --------------------------------------------
-    # Upload image to ComfyUI
-    # --------------------------------------------
 
     def upload_image(self, image_path):
         url = f"{self.server}/upload/image"
@@ -36,34 +32,81 @@ class ComfyClient:
         r.raise_for_status()
         return r.json()["name"]
 
-    # --------------------------------------------
-    # Detect workflow nodes automatically
-    # --------------------------------------------
+    def _iter_ksamplers(self, workflow):
+        for node in list(workflow.values()):
+            if node.get("class_type") == "KSampler":
+                yield node
 
-    def detect_nodes(self, workflow):
-        image_nodes = []
-        positive_nodes = []
-        negative_nodes = []
 
-        for node_id, node in workflow.items():
-            class_type = node.get("class_type", "")
+    def _node_ref_id(self, ref):
+        if isinstance(ref, (list, tuple)) and ref:
+            return str(ref[0])
+        return None
 
-            if class_type == "LoadImage":
-                image_nodes.append(node_id)
 
-            if class_type == "CLIPTextEncode":
-                text = node["inputs"].get("text", "").lower()
+    def _next_node_id(self, workflow):
+        numeric_ids = [int(node_id) for node_id in workflow if str(node_id).isdigit()]
+        return str(max(numeric_ids, default=0) + 1)
 
-                if "negative" in text:
-                    negative_nodes.append(node_id)
-                else:
-                    positive_nodes.append(node_id)
 
-        return image_nodes, positive_nodes, negative_nodes
+    def _resolve_clip_input(self, workflow, node_id, visited=None):
+        if node_id is None:
+            return None
 
-    # --------------------------------------------
-    # Inject prompt + image into workflow
-    # --------------------------------------------
+        visited = visited or set()
+        if node_id in visited:
+            return None
+        visited.add(node_id)
+
+        node = workflow.get(node_id)
+        if node is None:
+            return None
+
+        if node.get("class_type") == "CLIPTextEncode":
+            return node["inputs"].get("clip")
+
+        conditioning_ref = self._node_ref_id(node.get("inputs", {}).get("conditioning"))
+        if conditioning_ref is not None:
+            return self._resolve_clip_input(workflow, conditioning_ref, visited)
+
+        return None
+
+
+    def _set_positive_prompt(self, workflow, sampler, text):
+        node_id = self._node_ref_id(sampler.get("inputs", {}).get("positive"))
+        node = workflow.get(node_id) if node_id is not None else None
+        if node is not None and node.get("class_type") == "CLIPTextEncode":
+            node["inputs"]["text"] = text
+            return True
+        return False
+
+
+    def _set_negative_prompt(self, workflow, sampler, text):
+        node_id = self._node_ref_id(sampler.get("inputs", {}).get("negative"))
+        node = workflow.get(node_id) if node_id is not None else None
+
+        if node is not None and node.get("class_type") == "CLIPTextEncode":
+            node["inputs"]["text"] = text
+            return True
+
+        clip_ref = self._resolve_clip_input(workflow, node_id)
+        if clip_ref is None:
+            return False
+
+        new_node_id = self._next_node_id(workflow)
+        workflow[new_node_id] = {
+            "inputs": {
+                "text": text,
+                "clip": clip_ref,
+            },
+            "class_type": "CLIPTextEncode",
+            "_meta": {
+                "title": "CLIP Text Encode (Negative Prompt)"
+            },
+        }
+        sampler["inputs"]["negative"] = [new_node_id, 0]
+        return True
+
 
     def prepare_workflow(self, workflow, image_name, prompt_data):
         workflow = copy.deepcopy(workflow)
@@ -71,36 +114,37 @@ class ComfyClient:
         positive = prompt_data["prompt"]
         negative = prompt_data["negative_prompt"]
 
-        img_nodes, pos_nodes, neg_nodes = self.detect_nodes(workflow)
+        for node in workflow.values():
+            if node.get("class_type") == "LoadImage":
+                node["inputs"]["image"] = image_name
 
-        for node_id in img_nodes:
-            workflow[node_id]["inputs"]["image"] = image_name
+        positive_applied = False
+        for sampler in self._iter_ksamplers(workflow):
+            positive_applied = self._set_positive_prompt(workflow, sampler, positive) or positive_applied
+            self._set_negative_prompt(workflow, sampler, negative)
 
-        for node_id in pos_nodes:
-            workflow[node_id]["inputs"]["text"] = positive
-
-        for node_id in neg_nodes:
-            workflow[node_id]["inputs"]["text"] = negative
+        if not positive_applied:
+            raise ValueError("Workflow is missing a CLIPTextEncode node connected to KSampler.positive.")
 
         return workflow
 
-    # --------------------------------------------
-    # Inject sampler settings (denoise / seed)
-    # --------------------------------------------
-
     def apply_sampler_settings(self, workflow, denoise, seed_lock):
+        applied_seed = None
+
         for node_id, node in workflow.items():
             if node.get("class_type") == "KSampler":
                 node["inputs"]["denoise"] = denoise
 
-                if not seed_lock:
-                    node["inputs"]["seed"] = random.randint(1, 2**32)
+                if applied_seed is None:
+                    existing_seed = node["inputs"].get("seed")
+                    if seed_lock and existing_seed is not None:
+                        applied_seed = int(existing_seed)
+                    else:
+                        applied_seed = random.randint(1, 2**32 - 1)
 
-        return workflow
+                node["inputs"]["seed"] = applied_seed
 
-    # --------------------------------------------
-    # Queue workflow
-    # --------------------------------------------
+        return workflow, applied_seed
 
     def queue_prompt(self, workflow):
         client_id = str(uuid.uuid4())
@@ -117,10 +161,6 @@ class ComfyClient:
 
         r.raise_for_status()
         return r.json()["prompt_id"]
-
-    # --------------------------------------------
-    # Wait for generation to complete
-    # --------------------------------------------
 
     def wait_for_completion(self, prompt_id):
         while True:
@@ -144,10 +184,6 @@ class ComfyClient:
 
             time.sleep(1)
 
-    # --------------------------------------------
-    # Download image
-    # --------------------------------------------
-
     def download_image(self, image_info):
         params = {
             "filename": image_info["filename"],
@@ -163,10 +199,6 @@ class ComfyClient:
         r.raise_for_status()
         return Image.open(BytesIO(r.content)).convert("RGB")
 
-    # --------------------------------------------
-    # CLIP feature encoding
-    # --------------------------------------------
-
     def encode_image_features(self, image_or_path):
         if isinstance(image_or_path, str):
             image = Image.open(image_or_path).convert("RGB")
@@ -181,10 +213,6 @@ class ComfyClient:
 
         return features
 
-    # --------------------------------------------
-    # CLIP similarity scoring using precomputed original features
-    # --------------------------------------------
-
     def compute_clip_similarity_from_features(self, original_features, generated_image):
         generated_tensor = self.clip_preprocess(
             generated_image.convert("RGB")
@@ -197,15 +225,11 @@ class ComfyClient:
 
         return similarity
 
-    # --------------------------------------------
-    # Run workflow (Modified for Batch Generation)
-    # --------------------------------------------
-
     def run_workflow(self, workflow, input_image, prompt, denoise=0.5, seed_lock=False, batch_size=4):
         print("Uploading input image...")
         image_name = self.upload_image(input_image)
 
-        prompt_ids = []
+        prompt_jobs = []
 
         # Precompute original CLIP features once
         original_features = self.encode_image_features(input_image)
@@ -220,20 +244,23 @@ class ComfyClient:
                 prompt
             )
 
-            task_workflow = self.apply_sampler_settings(
+            task_workflow, task_seed = self.apply_sampler_settings(
                 task_workflow,
                 denoise,
                 seed_lock
             )
 
             prompt_id = self.queue_prompt(task_workflow)
-            prompt_ids.append(prompt_id)
+            prompt_jobs.append({
+                "prompt_id": prompt_id,
+                "seed": task_seed,
+            })
 
         print("Waiting for results...")
         results = []
 
-        for prompt_id in prompt_ids:
-            outputs = self.wait_for_completion(prompt_id)
+        for job in prompt_jobs:
+            outputs = self.wait_for_completion(job["prompt_id"])
 
             for img_info in outputs:
                 img = self.download_image(img_info)
@@ -242,8 +269,10 @@ class ComfyClient:
 
                 results.append({
                     "image": img,
-                    "score": score
+                    "score": score,
+                    "seed": job["seed"],
+                    "prompt_id": job["prompt_id"],
                 })
-                break  # 1 output image per request
+                break
 
         return results

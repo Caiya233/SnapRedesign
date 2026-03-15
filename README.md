@@ -262,7 +262,7 @@ SnapRedesign acts as a lightweight frontend, while a local ComfyUI instance serv
    Double-click `run_nvidia_gpu.bat` in the ComfyUI directory and keep the terminal window running in the background.
 
 4. **Align Port Configuration:**
-   ComfyUI runs on port `8188` by default. Ensure the `config.json` in the root directory of SnapRedesign is configured as follows:
+   ComfyUI runs on port `8188` by default. The checked-in `config.json` already uses that port, and if you customize it later it should still look like this:
 
 ```json
 {

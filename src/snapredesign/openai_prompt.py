@@ -1,10 +1,5 @@
 import random
 
-
-# ------------------------------
-# STYLE PRESETS
-# ------------------------------
-
 PRESETS = {
     "none": [],
 
@@ -114,17 +109,21 @@ PRESETS = {
     ]
 }
 
-
-# ------------------------------
-# CONTROL OPTIONS
-# ------------------------------
-
 PROMPT_MODES = [
     "preset_only",
     "manual_only",
     "preset_plus_manual",
-    "randomized"
+    "randomized",
 ]
+
+PROMPT_MODE_LABELS = {
+    "Preset Only": "preset_only",
+    "Manual Only": "manual_only",
+    "Preset + Manual": "preset_plus_manual",
+    "Random Mix": "randomized",
+}
+
+PROMPT_MODE_NAMES = {value: key for key, value in PROMPT_MODE_LABELS.items()}
 
 LIGHTING = [
     "random",
@@ -176,11 +175,6 @@ DEFAULT_NEGATIVE_PROMPT = (
     "bad anatomy, distorted face"
 )
 
-
-# ------------------------------
-# HELPERS
-# ------------------------------
-
 def _clean_csv_text(text):
     if not text:
         return []
@@ -205,6 +199,16 @@ def _dedupe_keep_order(items):
     return output
 
 
+def normalize_prompt_mode(value):
+    if not value:
+        return "preset_only"
+
+    if value in PROMPT_MODES:
+        return value
+
+    return PROMPT_MODE_LABELS.get(value, "preset_only")
+
+
 def default_prompt_settings():
     return {
         "mode": "preset_only",
@@ -223,13 +227,8 @@ def default_prompt_settings():
         "batch_size": 4,
     }
 
-
-# ------------------------------
-# PROMPT BUILDING
-# ------------------------------
-
 def build_prompt_from_settings(settings):
-    mode = settings.get("mode", "preset_only")
+    mode = normalize_prompt_mode(settings.get("mode", "preset_only"))
     preset = settings.get("preset", "cyberpunk")
     custom_prompt = settings.get("custom_prompt", "").strip()
     negative_prompt = settings.get("negative_prompt", DEFAULT_NEGATIVE_PROMPT).strip()
@@ -245,6 +244,7 @@ def build_prompt_from_settings(settings):
     prompt_parts = [subject, f"redesign strength {redesign_strength:.2f}"]
 
     preset_parts = PRESETS.get(preset, [])
+    applied_preset = preset
 
     if mode == "preset_only":
         prompt_parts.extend(preset_parts)
@@ -257,8 +257,8 @@ def build_prompt_from_settings(settings):
         prompt_parts.extend(_clean_csv_text(custom_prompt))
 
     elif mode == "randomized":
-        random_preset = random.choice([k for k in PRESETS.keys() if k != "none"])
-        prompt_parts.extend(PRESETS[random_preset])
+        applied_preset = random.choice([name for name in PRESETS if name != "none"])
+        prompt_parts.extend(PRESETS[applied_preset])
         if custom_prompt:
             prompt_parts.extend(_clean_csv_text(custom_prompt))
     else:
@@ -273,9 +273,10 @@ def build_prompt_from_settings(settings):
     negative = negative_prompt if negative_prompt else DEFAULT_NEGATIVE_PROMPT
 
     return {
-        "preset": preset,
+        "preset": applied_preset,
+        "mode": mode,
         "prompt": positive,
-        "negative_prompt": negative
+        "negative_prompt": negative,
     }
 
 
